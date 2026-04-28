@@ -18,7 +18,7 @@ export function MenuGrid() {
   });
 
   return (
-    <div className="p-3 sm:p-4 overflow-y-auto h-full pb-24">
+    <div className="min-h-0 flex-1 overflow-y-auto p-3 pb-24 sm:p-4 md:pb-24">
       {filteredItems.length === 0 ? (
         <div className="flex flex-col items-center justify-center h-64 text-gray-400">
           <p className="text-lg font-medium">No items found</p>

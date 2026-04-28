@@ -1,45 +1,7 @@
-import {
-  createContext,
-  useCallback,
-  useContext,
-  useEffect,
-  useState,
-  type ReactNode,
-} from 'react';
+import { useCallback, useEffect, useState, type ReactNode } from 'react';
+import { menuItems } from '@/data/menuData';
 import type { CartItem, InvoiceSettings, Order } from '@/types';
-import { menuItems, tables } from '@/data/menuData';
-
-interface POSContextType {
-  cart: CartItem[];
-  orders: Order[];
-  invoiceSettings: InvoiceSettings;
-  invoiceOrder: Order | null;
-  selectedTable: string;
-  selectedCategory: string;
-  subtotal: number;
-  updateInvoiceSettings: (settings: Partial<InvoiceSettings>) => void;
-  dismissInvoice: () => void;
-  addToCart: (itemId: string) => void;
-  removeFromCart: (itemId: string) => void;
-  updateQuantity: (itemId: string, quantity: number) => void;
-  clearCart: () => void;
-  setSelectedTable: (table: string) => void;
-  setSelectedCategory: (category: string) => void;
-  placeOrder: (customerName?: string, tableNumber?: string) => Order | null;
-  addItemToOrder: (orderId: string, itemId: string) => void;
-  updateOrderItemQuantity: (orderId: string, itemId: string, quantity: number) => void;
-  updateOrderItems: (orderId: string, items: CartItem[]) => void;
-  chargeOrder: (
-    order: Order,
-    paymentMethod: NonNullable<Order['paymentMethod']>
-  ) => Order;
-  updateOrderStatus: (orderId: string, status: Order['status']) => void;
-  getTableStatus: (tableNumber: string) => 'available' | 'occupied' | 'reserved';
-  searchQuery: string;
-  setSearchQuery: (query: string) => void;
-}
-
-const POSContext = createContext<POSContextType | undefined>(undefined);
+import { POSContext } from '@/hooks/posContext';
 
 const INVOICE_SETTINGS_KEY = 'cafe-pos-invoice-settings';
 
@@ -164,48 +126,6 @@ export function POSProvider({ children }: { children: ReactNode }) {
     [cart, invoiceSettings.taxRate, selectedTable]
   );
 
-  const addItemToOrder = useCallback((orderId: string, itemId: string) => {
-    const item = menuItems.find((m) => m.id === itemId);
-    if (!item) return;
-
-    setOrders((prev) =>
-      prev.map((order) => {
-        if (order.id !== orderId || order.status !== 'active') return order;
-
-        const existingItem = order.items.find((orderItem) => orderItem.id === itemId);
-        const items = existingItem
-          ? order.items.map((orderItem) =>
-              orderItem.id === itemId
-                ? { ...orderItem, quantity: orderItem.quantity + 1 }
-                : orderItem
-            )
-          : [...order.items, { ...item, quantity: 1 }];
-
-        return { ...order, items, ...calculateTotals(items, invoiceSettings.taxRate) };
-      })
-    );
-  }, [invoiceSettings.taxRate]);
-
-  const updateOrderItemQuantity = useCallback(
-    (orderId: string, itemId: string, quantity: number) => {
-      setOrders((prev) =>
-        prev.map((order) => {
-          if (order.id !== orderId || order.status !== 'active') return order;
-
-          const items =
-            quantity <= 0
-              ? order.items.filter((item) => item.id !== itemId)
-              : order.items.map((item) =>
-                  item.id === itemId ? { ...item, quantity } : item
-                );
-
-          return { ...order, items, ...calculateTotals(items, invoiceSettings.taxRate) };
-        })
-      );
-    },
-    [invoiceSettings.taxRate]
-  );
-
   const updateOrderItems = useCallback(
     (orderId: string, items: CartItem[]) => {
       setOrders((prev) =>
@@ -228,8 +148,8 @@ export function POSProvider({ children }: { children: ReactNode }) {
       };
 
       setOrders((prev) =>
-        prev.map((order) =>
-          order.id === paidOrder.id ? paidOrder : order
+        prev.map((currentOrder) =>
+          currentOrder.id === paidOrder.id ? paidOrder : currentOrder
         )
       );
       setInvoiceOrder(paidOrder);
@@ -240,17 +160,9 @@ export function POSProvider({ children }: { children: ReactNode }) {
 
   const updateOrderStatus = useCallback((orderId: string, status: Order['status']) => {
     setOrders((prev) =>
-      prev.map((o) => (o.id === orderId ? { ...o, status } : o))
+      prev.map((order) => (order.id === orderId ? { ...order, status } : order))
     );
   }, []);
-
-  const getTableStatus = useCallback(
-    (tableNumber: string) => {
-      const table = tables.find((t) => t.number === tableNumber);
-      return table?.status || 'available';
-    },
-    []
-  );
 
   const subtotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
 
@@ -273,12 +185,9 @@ export function POSProvider({ children }: { children: ReactNode }) {
         setSelectedTable,
         setSelectedCategory,
         placeOrder,
-        addItemToOrder,
-        updateOrderItemQuantity,
         updateOrderItems,
         chargeOrder,
         updateOrderStatus,
-        getTableStatus,
         searchQuery,
         setSearchQuery,
       }}
@@ -286,12 +195,4 @@ export function POSProvider({ children }: { children: ReactNode }) {
       {children}
     </POSContext.Provider>
   );
-}
-
-export function usePOS() {
-  const context = useContext(POSContext);
-  if (!context) {
-    throw new Error('usePOS must be used within a POSProvider');
-  }
-  return context;
 }
