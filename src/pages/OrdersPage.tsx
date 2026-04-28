@@ -3,6 +3,17 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
+import {
+  Drawer,
+  DrawerContent,
+  DrawerDescription,
+  DrawerFooter,
+  DrawerHeader,
+  DrawerTitle,
+} from '@/components/ui/drawer';
+import { CategoryTabs } from '@/components/CategoryTabs';
+import { MenuGrid } from '@/components/MenuGrid';
+import { OrderPanel } from '@/components/OrderPanel';
 import { usePOS } from '@/hooks/usePOS';
 import { categories, menuItems } from '@/data/menuData';
 import type { Order } from '@/types';
@@ -32,7 +43,6 @@ import {
   XCircle,
 } from 'lucide-react';
 
-type OrderFilter = 'all' | 'active' | 'completed';
 type PaymentMethod = NonNullable<Order['paymentMethod']>;
 
 const statusConfig = {
@@ -79,29 +89,43 @@ function tableSortValue(tableNumber: string) {
   return Number.isNaN(numericValue) ? Number.MAX_SAFE_INTEGER : numericValue;
 }
 
+function getOrderDisplayName(order: Order) {
+  if (order.tableNumber === 'Instant') {
+    return order.customerName || 'Instant Order';
+  }
+
+  if (order.tableNumber === 'Custom' && order.customerName) {
+    return order.customerName;
+  }
+
+  return `Table ${order.tableNumber}`;
+}
+
 export function OrdersPage() {
   const {
     orders,
-    addItemToOrder,
-    updateOrderItemQuantity,
+    updateOrderItems,
     chargeOrder,
     updateOrderStatus,
     invoiceSettings,
+    searchQuery: posSearchQuery,
+    setSearchQuery: setPosSearchQuery,
   } = usePOS();
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
-  const [statusFilter, setStatusFilter] = useState<OrderFilter>('all');
+  const [isCreatingOrder, setIsCreatingOrder] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [menuSearchQuery, setMenuSearchQuery] = useState('');
   const [menuCategory, setMenuCategory] = useState('all');
   const [showPaymentOptions, setShowPaymentOptions] = useState(false);
+  const [draftItems, setDraftItems] = useState<Order['items']>([]);
+  const [isMobileOrderOpen, setIsMobileOrderOpen] = useState(false);
 
   const selectedOrder = orders.find((order) => order.id === selectedOrderId) || null;
   const isEditingActiveOrder = selectedOrder?.status === 'active';
 
   const visibleOrders = useMemo(() => {
     return orders
-      .filter((order) => order.status !== 'cancelled')
-      .filter((order) => statusFilter === 'all' || order.status === statusFilter)
+      .filter((order) => order.status === 'active')
       .filter((order) => {
         if (!searchQuery) return true;
         const normalizedQuery = searchQuery.toLowerCase();
@@ -118,7 +142,7 @@ export function OrdersPage() {
         if (tableDifference !== 0) return tableDifference;
         return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
       });
-  }, [orders, searchQuery, statusFilter]);
+  }, [orders, searchQuery]);
 
   const filteredMenuItems = menuItems.filter((item) => {
     const normalizedQuery = menuSearchQuery.toLowerCase();
@@ -131,22 +155,141 @@ export function OrdersPage() {
     return matchesCategory && matchesSearch;
   });
 
+  const draftSubtotal = draftItems.reduce(
+    (sum, item) => sum + item.price * item.quantity,
+    0
+  );
+  const draftTax = draftSubtotal * (invoiceSettings.taxRate / 100);
+  const draftTotal = draftSubtotal + draftTax;
+  const panelItems = isEditingActiveOrder ? draftItems : selectedOrder?.items || [];
+  const panelItemCount = panelItems.reduce((sum, item) => sum + item.quantity, 0);
+  const panelSubtotal = isEditingActiveOrder ? draftSubtotal : selectedOrder?.subtotal || 0;
+  const panelTax = isEditingActiveOrder ? draftTax : selectedOrder?.tax || 0;
+  const panelTotal = isEditingActiveOrder ? draftTotal : selectedOrder?.total || 0;
+
+  const addDraftItem = (itemId: string) => {
+    const item = menuItems.find((menuItem) => menuItem.id === itemId);
+    if (!item) return;
+
+    setDraftItems((prev) => {
+      const existingItem = prev.find((draftItem) => draftItem.id === itemId);
+
+      if (existingItem) {
+        return prev.map((draftItem) =>
+          draftItem.id === itemId
+            ? { ...draftItem, quantity: draftItem.quantity + 1 }
+            : draftItem
+        );
+      }
+
+      return [...prev, { ...item, quantity: 1 }];
+    });
+  };
+
+  const updateDraftItemQuantity = (itemId: string, quantity: number) => {
+    setDraftItems((prev) => {
+      if (quantity <= 0) {
+        return prev.filter((item) => item.id !== itemId);
+      }
+
+      return prev.map((item) =>
+        item.id === itemId ? { ...item, quantity } : item
+      );
+    });
+  };
+
+  const removeDraftItem = (itemId: string) => {
+    setDraftItems((prev) => prev.filter((item) => item.id !== itemId));
+  };
+
+  const saveDraftOrder = () => {
+    if (!selectedOrder || selectedOrder.status !== 'active') return;
+
+    updateOrderItems(selectedOrder.id, draftItems);
+    setIsMobileOrderOpen(false);
+    closeOrder();
+  };
+
+  const chargePanelOrder = (paymentMethod: PaymentMethod) => {
+    if (!selectedOrder) return;
+
+    const orderToCharge: Order = isEditingActiveOrder
+      ? {
+          ...selectedOrder,
+          items: draftItems,
+          subtotal: draftSubtotal,
+          tax: draftTax,
+          total: draftTotal,
+        }
+      : selectedOrder;
+
+    chargeOrder(orderToCharge, paymentMethod);
+    setShowPaymentOptions(false);
+    setDraftItems([]);
+    setIsMobileOrderOpen(false);
+  };
+
   const openOrder = (orderId: string) => {
+    const order = orders.find((order) => order.id === orderId);
+
     setSelectedOrderId(orderId);
+    setIsCreatingOrder(false);
     setMenuSearchQuery('');
     setMenuCategory('all');
     setShowPaymentOptions(false);
+    setIsMobileOrderOpen(false);
+    setDraftItems(order?.items.map((item) => ({ ...item })) || []);
   };
 
   const closeOrder = () => {
     setSelectedOrderId(null);
+    setIsCreatingOrder(false);
     setShowPaymentOptions(false);
+    setIsMobileOrderOpen(false);
+    setDraftItems([]);
+  };
+
+  const startNewOrder = () => {
+    setSelectedOrderId(null);
+    setIsCreatingOrder(true);
+    setMenuSearchQuery('');
+    setMenuCategory('all');
+    setPosSearchQuery('');
+    setShowPaymentOptions(false);
+    setIsMobileOrderOpen(false);
+    setDraftItems([]);
   };
 
   return (
     <div className="h-full flex flex-col md:flex-row">
       <div className="flex min-w-0 flex-1 flex-col">
-        {isEditingActiveOrder ? (
+        {isCreatingOrder ? (
+          <>
+            <div className="bg-white px-3 py-2 border-b border-gray-200 flex items-center gap-2 shrink-0">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-9 w-9 shrink-0"
+                onClick={closeOrder}
+                aria-label="Back to orders"
+              >
+                <ArrowLeft className="h-4 w-4" />
+              </Button>
+              <div className="relative flex-1 max-w-xs">
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400" />
+                <Input
+                  placeholder="Search menu..."
+                  value={posSearchQuery}
+                  onChange={(event) => setPosSearchQuery(event.target.value)}
+                  className="pl-8 h-9 text-sm"
+                />
+              </div>
+            </div>
+
+            <CategoryTabs />
+            <MenuGrid />
+          </>
+        ) : isEditingActiveOrder ? (
           <>
             <div className="bg-white px-3 py-2 border-b border-gray-200 shrink-0">
               <div className="flex items-center gap-2">
@@ -200,7 +343,7 @@ export function OrdersPage() {
               </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-3 sm:p-4 pb-24">
+            <div className="flex-1 overflow-y-auto p-3 pb-36 sm:p-4 md:pb-24">
               {filteredMenuItems.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-64 text-gray-400">
                   <p className="text-lg font-medium">No items found</p>
@@ -209,10 +352,10 @@ export function OrdersPage() {
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-3">
                   {filteredMenuItems.map((item) => {
-                    const orderItem = selectedOrder.items.find(
+                    const draftItem = draftItems.find(
                       (selectedItem) => selectedItem.id === item.id
                     );
-                    const quantity = orderItem?.quantity || 0;
+                    const quantity = draftItem?.quantity || 0;
 
                     return (
                       <div
@@ -253,11 +396,7 @@ export function OrdersPage() {
                                   size="icon"
                                   className="h-8 w-8 rounded-full"
                                   onClick={() =>
-                                    updateOrderItemQuantity(
-                                      selectedOrder.id,
-                                      item.id,
-                                      quantity - 1
-                                    )
+                                    updateDraftItemQuantity(item.id, quantity - 1)
                                   }
                                   aria-label={`Remove ${item.name}`}
                                 >
@@ -270,7 +409,7 @@ export function OrdersPage() {
                               )}
                               <Button
                                 size="sm"
-                                onClick={() => addItemToOrder(selectedOrder.id, item.id)}
+                                onClick={() => addDraftItem(item.id)}
                                 className="bg-violet-600 hover:bg-violet-700 h-8 px-3 text-xs"
                               >
                                 <Plus className="h-3.5 w-3.5 mr-1" />
@@ -294,35 +433,23 @@ export function OrdersPage() {
         ) : (
           <>
             <div className="bg-white px-4 py-3 border-b border-gray-200 shrink-0 space-y-3">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                <Input
-                  placeholder="Search by table or customer..."
-                  value={searchQuery}
-                  onChange={(event) => setSearchQuery(event.target.value)}
-                  className="pl-9"
-                />
-              </div>
-              <div className="grid grid-cols-3 gap-2">
-                {[
-                  { value: 'all', label: 'All' },
-                  { value: 'active', label: 'Active' },
-                  { value: 'completed', label: 'Completed' },
-                ].map((option) => (
-                  <Button
-                    key={option.value}
-                    variant={statusFilter === option.value ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => setStatusFilter(option.value as OrderFilter)}
-                    className={`h-9 text-sm ${
-                      statusFilter === option.value
-                        ? 'bg-violet-600 hover:bg-violet-700'
-                        : ''
-                    }`}
-                  >
-                    {option.label}
-                  </Button>
-                ))}
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  <Input
+                    placeholder="Search by table or customer..."
+                    value={searchQuery}
+                    onChange={(event) => setSearchQuery(event.target.value)}
+                    className="pl-9"
+                  />
+                </div>
+                <Button
+                  className="h-10 bg-violet-600 hover:bg-violet-700"
+                  onClick={startNewOrder}
+                >
+                  <Plus className="mr-2 h-4 w-4" />
+                  New Order
+                </Button>
               </div>
             </div>
 
@@ -330,7 +457,7 @@ export function OrdersPage() {
               {visibleOrders.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-64 text-gray-400">
                   <Clock className="h-12 w-12 mb-3 opacity-30" />
-                  <p className="text-sm">No orders found</p>
+                  <p className="text-sm">No active orders</p>
                 </div>
               ) : (
                 visibleOrders.map((order) => {
@@ -342,6 +469,7 @@ export function OrdersPage() {
                     0
                   );
                   const isSelected = selectedOrderId === order.id;
+                  const orderDisplayName = getOrderDisplayName(order);
 
                   return (
                     <div
@@ -366,7 +494,7 @@ export function OrdersPage() {
                         <div className="min-w-0">
                           <div className="flex items-center gap-2">
                             <span className="font-bold text-gray-900">
-                              Table {order.tableNumber}
+                              {orderDisplayName}
                             </span>
                             <Badge
                               variant="outline"
@@ -378,7 +506,7 @@ export function OrdersPage() {
                           </div>
                           <p className="text-xs text-gray-500 mt-0.5">
                             {orderDate.toLocaleTimeString()} &middot; {itemCount} items
-                            {order.customerName
+                            {order.customerName && order.tableNumber !== 'Custom'
                               ? ` &middot; ${order.customerName}`
                               : ''}
                           </p>
@@ -429,13 +557,16 @@ export function OrdersPage() {
         )}
       </div>
 
-      {selectedOrder && (
-        <aside className="flex w-full shrink-0 flex-col border-t border-gray-200 bg-white md:w-[420px] md:border-l md:border-t-0">
+      {isCreatingOrder ? (
+        <OrderPanel />
+      ) : selectedOrder ? (
+        <>
+        <aside className="hidden w-full shrink-0 flex-col border-t border-gray-200 bg-white md:flex md:w-[420px] md:border-l md:border-t-0">
           <div className="flex items-start justify-between gap-3 border-b border-gray-200 px-4 py-3">
             <div className="min-w-0">
               <div className="flex items-center gap-2">
                 <h2 className="text-sm font-semibold text-gray-900">
-                  Table {selectedOrder.tableNumber}
+                  {getOrderDisplayName(selectedOrder)}
                 </h2>
                 <Badge
                   variant="outline"
@@ -444,7 +575,7 @@ export function OrdersPage() {
                   {statusConfig[selectedOrder.status].label}
                 </Badge>
               </div>
-              {selectedOrder.customerName && (
+              {selectedOrder.customerName && selectedOrder.tableNumber !== 'Custom' && (
                 <p className="text-xs text-gray-500 mt-0.5">
                   {selectedOrder.customerName}
                 </p>
@@ -462,12 +593,12 @@ export function OrdersPage() {
           </div>
 
           <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3 space-y-3">
-            {selectedOrder.items.length === 0 ? (
+            {panelItems.length === 0 ? (
               <div className="flex h-40 flex-col items-center justify-center rounded-lg border border-dashed border-gray-200 text-gray-400">
                 <p className="text-sm">No items yet</p>
               </div>
             ) : (
-              selectedOrder.items.map((item) => (
+              panelItems.map((item) => (
                 <div
                   key={item.id}
                   className="rounded-lg border border-gray-200 bg-white p-3"
@@ -483,6 +614,46 @@ export function OrdersPage() {
                       ${(item.price * item.quantity).toFixed(2)}
                     </span>
                   </div>
+                  {isEditingActiveOrder && (
+                    <div className="mt-3 flex items-center justify-between">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-red-500 hover:bg-red-50 hover:text-red-600"
+                        onClick={() => removeDraftItem(item.id)}
+                        aria-label={`Remove ${item.name}`}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          className="h-8 w-8 rounded-full"
+                          onClick={() =>
+                            updateDraftItemQuantity(item.id, item.quantity - 1)
+                          }
+                          aria-label={`Decrease ${item.name}`}
+                        >
+                          <Minus className="h-3.5 w-3.5" />
+                        </Button>
+                        <span className="w-7 text-center text-sm font-semibold">
+                          {item.quantity}
+                        </span>
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          className="h-8 w-8 rounded-full"
+                          onClick={() =>
+                            updateDraftItemQuantity(item.id, item.quantity + 1)
+                          }
+                          aria-label={`Increase ${item.name}`}
+                        >
+                          <Plus className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               ))
             )}
@@ -492,17 +663,17 @@ export function OrdersPage() {
             <div className="space-y-2 text-sm">
               <div className="flex justify-between text-gray-600">
                 <span>Subtotal</span>
-                <span>${selectedOrder.subtotal.toFixed(2)}</span>
+                <span>${panelSubtotal.toFixed(2)}</span>
               </div>
               <div className="flex justify-between text-gray-600">
                 <span>Tax ({invoiceSettings.taxRate}%)</span>
-                <span>${selectedOrder.tax.toFixed(2)}</span>
+                <span>${panelTax.toFixed(2)}</span>
               </div>
               <Separator />
               <div className="flex justify-between text-lg font-bold text-gray-900">
                 <span>Total</span>
                 <span className="text-violet-700">
-                  ${selectedOrder.total.toFixed(2)}
+                  ${panelTotal.toFixed(2)}
                 </span>
               </div>
             </div>
@@ -514,7 +685,7 @@ export function OrdersPage() {
                     <Button
                       variant="outline"
                       className="h-11 border-violet-200 text-violet-700 hover:bg-violet-50"
-                      onClick={closeOrder}
+                      onClick={saveDraftOrder}
                     >
                       <Save className="mr-2 h-4 w-4" />
                       Save
@@ -522,7 +693,7 @@ export function OrdersPage() {
                     <Button
                       className="h-11 bg-violet-600 hover:bg-violet-700"
                       onClick={() => setShowPaymentOptions(true)}
-                      disabled={selectedOrder.items.length === 0}
+                      disabled={panelItems.length === 0}
                     >
                       <CreditCard className="mr-2 h-4 w-4" />
                       Charge
@@ -539,8 +710,7 @@ export function OrdersPage() {
                             key={option.value}
                             type="button"
                             onClick={() => {
-                              chargeOrder(selectedOrder, option.value);
-                              setShowPaymentOptions(false);
+                              chargePanelOrder(option.value);
                             }}
                             className="flex flex-col items-center gap-1 rounded-lg border-2 border-gray-200 p-3 text-gray-600 hover:border-violet-600 hover:bg-violet-50 hover:text-violet-700"
                           >
@@ -585,7 +755,219 @@ export function OrdersPage() {
             )}
           </div>
         </aside>
-      )}
+
+        {selectedOrder.status === 'active' && (
+          <>
+            <div className="fixed inset-x-0 bottom-0 z-40 border-t border-gray-200 bg-white px-3 pb-[calc(0.5rem+env(safe-area-inset-bottom))] pt-2 shadow-[0_-8px_24px_rgba(15,23,42,0.08)] md:hidden">
+              <button
+                type="button"
+                className="mb-2 flex h-12 w-full items-center justify-between rounded-lg border border-gray-200 bg-gray-50 px-3 text-left"
+                onClick={() => {
+                  setShowPaymentOptions(false);
+                  setIsMobileOrderOpen(true);
+                }}
+              >
+                <span className="min-w-0">
+                  <span className="block text-xs font-medium text-gray-500">
+                    Selected Items
+                  </span>
+                  <span className="block truncate text-sm font-semibold text-gray-900">
+                    {panelItemCount} item{panelItemCount === 1 ? '' : 's'}
+                  </span>
+                </span>
+                <span className="shrink-0 text-base font-bold text-violet-700">
+                  ${panelTotal.toFixed(2)}
+                </span>
+              </button>
+              <div className="grid grid-cols-2 gap-2">
+                <Button
+                  variant="outline"
+                  className="h-11 border-violet-200 text-violet-700 hover:bg-violet-50"
+                  onClick={saveDraftOrder}
+                >
+                  <Save className="mr-2 h-4 w-4" />
+                  Save
+                </Button>
+                <Button
+                  className="h-11 bg-violet-600 hover:bg-violet-700"
+                  onClick={() => {
+                    setShowPaymentOptions(true);
+                    setIsMobileOrderOpen(true);
+                  }}
+                  disabled={panelItems.length === 0}
+                >
+                  <CreditCard className="mr-2 h-4 w-4" />
+                  Charge
+                </Button>
+              </div>
+            </div>
+
+            <Drawer
+              open={isMobileOrderOpen}
+              onOpenChange={(open) => {
+                setIsMobileOrderOpen(open);
+                if (!open) {
+                  setShowPaymentOptions(false);
+                }
+              }}
+            >
+              <DrawerContent className="max-h-[85vh] md:hidden">
+                <DrawerHeader className="text-left">
+                  <DrawerTitle>
+                    {showPaymentOptions
+                      ? 'Payment Method'
+                      : getOrderDisplayName(selectedOrder)}
+                  </DrawerTitle>
+                  <DrawerDescription>
+                    {panelItemCount} item{panelItemCount === 1 ? '' : 's'} &middot; $
+                    {panelTotal.toFixed(2)}
+                  </DrawerDescription>
+                </DrawerHeader>
+
+                <div className="min-h-0 overflow-y-auto px-4 pb-2">
+                  {showPaymentOptions ? (
+                    <div className="grid grid-cols-3 gap-2">
+                      {paymentOptions.map((option) => {
+                        const Icon = option.icon;
+
+                        return (
+                          <button
+                            key={option.value}
+                            type="button"
+                            onClick={() => chargePanelOrder(option.value)}
+                            className="flex min-h-20 flex-col items-center justify-center gap-1 rounded-lg border-2 border-gray-200 p-3 text-gray-600 hover:border-violet-600 hover:bg-violet-50 hover:text-violet-700"
+                          >
+                            <Icon className="h-5 w-5" />
+                            <span className="text-xs font-medium">
+                              {option.label}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  ) : panelItems.length === 0 ? (
+                    <div className="flex h-32 flex-col items-center justify-center rounded-lg border border-dashed border-gray-200 text-gray-400">
+                      <p className="text-sm">No items yet</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {panelItems.map((item) => (
+                        <div
+                          key={item.id}
+                          className="rounded-lg border border-gray-200 bg-white p-3"
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0">
+                              <p className="text-sm font-medium text-gray-900">
+                                {item.name}
+                              </p>
+                              <p className="text-xs text-gray-500">
+                                {item.quantity} x ${item.price.toFixed(2)}
+                              </p>
+                            </div>
+                            <span className="shrink-0 text-sm font-semibold text-violet-700">
+                              ${(item.price * item.quantity).toFixed(2)}
+                            </span>
+                          </div>
+                          <div className="mt-3 flex items-center justify-between">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-red-500 hover:bg-red-50 hover:text-red-600"
+                              onClick={() => removeDraftItem(item.id)}
+                              aria-label={`Remove ${item.name}`}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                            <div className="flex items-center gap-2">
+                              <Button
+                                variant="outline"
+                                size="icon"
+                                className="h-8 w-8 rounded-full"
+                                onClick={() =>
+                                  updateDraftItemQuantity(item.id, item.quantity - 1)
+                                }
+                                aria-label={`Decrease ${item.name}`}
+                              >
+                                <Minus className="h-3.5 w-3.5" />
+                              </Button>
+                              <span className="w-7 text-center text-sm font-semibold">
+                                {item.quantity}
+                              </span>
+                              <Button
+                                variant="outline"
+                                size="icon"
+                                className="h-8 w-8 rounded-full"
+                                onClick={() =>
+                                  updateDraftItemQuantity(item.id, item.quantity + 1)
+                                }
+                                aria-label={`Increase ${item.name}`}
+                              >
+                                <Plus className="h-3.5 w-3.5" />
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <DrawerFooter className="border-t border-gray-200">
+                  {showPaymentOptions ? (
+                    <Button
+                      variant="outline"
+                      className="h-11"
+                      onClick={() => setShowPaymentOptions(false)}
+                    >
+                      Back
+                    </Button>
+                  ) : (
+                    <>
+                      <div className="space-y-2 text-sm">
+                        <div className="flex justify-between text-gray-600">
+                          <span>Subtotal</span>
+                          <span>${panelSubtotal.toFixed(2)}</span>
+                        </div>
+                        <div className="flex justify-between text-gray-600">
+                          <span>Tax ({invoiceSettings.taxRate}%)</span>
+                          <span>${panelTax.toFixed(2)}</span>
+                        </div>
+                        <Separator />
+                        <div className="flex justify-between text-lg font-bold text-gray-900">
+                          <span>Total</span>
+                          <span className="text-violet-700">
+                            ${panelTotal.toFixed(2)}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <Button
+                          variant="outline"
+                          className="h-11 border-violet-200 text-violet-700 hover:bg-violet-50"
+                          onClick={saveDraftOrder}
+                        >
+                          <Save className="mr-2 h-4 w-4" />
+                          Save
+                        </Button>
+                        <Button
+                          className="h-11 bg-violet-600 hover:bg-violet-700"
+                          onClick={() => setShowPaymentOptions(true)}
+                          disabled={panelItems.length === 0}
+                        >
+                          <CreditCard className="mr-2 h-4 w-4" />
+                          Charge
+                        </Button>
+                      </div>
+                    </>
+                  )}
+                </DrawerFooter>
+              </DrawerContent>
+            </Drawer>
+          </>
+        )}
+        </>
+      ) : null}
     </div>
   );
 }

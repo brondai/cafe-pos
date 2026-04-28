@@ -17,7 +17,6 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const navItems = [
-    { path: '/', label: 'POS', icon: Coffee },
     { path: '/orders', label: 'Orders', icon: ClipboardList },
     { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { path: '/settings', label: 'Settings', icon: Settings },
@@ -30,7 +29,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
       {/* Header */}
       <header className="bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between shrink-0 z-20">
         <div className="flex items-center gap-3">
-          {location.pathname !== '/' && (
+          {location.pathname !== '/' && location.pathname !== '/orders' && (
             <Button
               variant="ghost"
               size="icon"

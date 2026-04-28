@@ -35,6 +35,12 @@ function money(value: number, symbol: string) {
   return `${symbol}${value.toFixed(2)}`;
 }
 
+function getOrderLabel(order: Order) {
+  if (order.tableNumber === 'Instant') return order.customerName || 'Instant Order';
+  if (order.tableNumber === 'Custom' && order.customerName) return order.customerName;
+  return `Table ${order.tableNumber}`;
+}
+
 export function InvoiceTemplate({
   order,
   settings,
@@ -70,8 +76,8 @@ export function InvoiceTemplate({
           <p className="font-semibold text-gray-950">{order.id}</p>
         </div>
         <div className="text-right">
-          <p className="text-gray-500">Table</p>
-          <p className="font-semibold text-gray-950">{order.tableNumber}</p>
+          <p className="text-gray-500">Order</p>
+          <p className="font-semibold text-gray-950">{getOrderLabel(order)}</p>
         </div>
         <div>
           <p className="text-gray-500">Date</p>

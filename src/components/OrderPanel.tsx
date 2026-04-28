@@ -5,9 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
 import { tables } from '@/data/menuData';
 import { usePOS } from '@/hooks/usePOS';
-import type { Order } from '@/types';
 import {
-  Armchair,
   Banknote,
   CreditCard,
   Minus,
@@ -18,8 +16,8 @@ import {
   User,
 } from 'lucide-react';
 
-type PanelMode = 'cart' | 'save' | 'custom' | 'charge';
-type PaymentMethod = NonNullable<Order['paymentMethod']>;
+type PanelMode = 'cart' | 'save' | 'custom' | 'instant';
+type PaymentMethod = 'cash' | 'card' | 'qr';
 
 const paymentOptions: Array<{
   value: PaymentMethod;
@@ -28,7 +26,7 @@ const paymentOptions: Array<{
 }> = [
   { value: 'cash', label: 'Cash', icon: Banknote },
   { value: 'card', label: 'Card', icon: CreditCard },
-  { value: 'qr', label: 'QR Code', icon: QrCode },
+  { value: 'qr', label: 'QR', icon: QrCode },
 ];
 
 function getStatusColor(status: string) {
@@ -73,8 +71,10 @@ export function OrderPanel() {
   const navigate = useNavigate();
   const [mode, setMode] = useState<PanelMode>('cart');
   const [pendingTable, setPendingTable] = useState(selectedTable);
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash');
   const [customOrderName, setCustomOrderName] = useState('');
+  const [instantOrderName, setInstantOrderName] = useState('');
+  const [instantPaymentMethod, setInstantPaymentMethod] =
+    useState<PaymentMethod>('cash');
 
   const cartCount = useMemo(
     () => cart.reduce((sum, item) => sum + item.quantity, 0),
@@ -82,7 +82,6 @@ export function OrderPanel() {
   );
   const tax = subtotal * (invoiceSettings.taxRate / 100);
   const total = subtotal + tax;
-  const isChoosingTable = mode === 'charge';
 
   useEffect(() => {
     if (cart.length === 0) {
@@ -102,12 +101,36 @@ export function OrderPanel() {
 
     if (!order) return;
 
-    if (mode === 'charge') {
-      chargeOrder(order, paymentMethod);
-    }
-
     setMode('cart');
     setCustomOrderName('');
+    navigate('/orders');
+  };
+
+  const makeInstantOrderName = () => {
+    const time = new Date().toLocaleTimeString([], {
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+
+    return `Instant Sale ${time}`;
+  };
+
+  const openInstantCharge = () => {
+    setInstantOrderName(makeInstantOrderName());
+    setInstantPaymentMethod('cash');
+    setMode('instant');
+  };
+
+  const chargeInstantOrder = () => {
+    const orderName = instantOrderName.trim() || makeInstantOrderName();
+    const order = placeOrder(orderName, 'Instant');
+
+    if (!order) return;
+
+    chargeOrder(order, instantPaymentMethod);
+    setMode('cart');
+    setCustomOrderName('');
+    setInstantOrderName('');
     navigate('/orders');
   };
 
@@ -115,17 +138,23 @@ export function OrderPanel() {
     return null;
   }
 
-  if (mode === 'save' || mode === 'custom') {
+  if (mode === 'save' || mode === 'custom' || mode === 'instant') {
     return (
-      <aside className="flex w-full shrink-0 flex-col border-t border-gray-200 bg-white md:w-[380px] md:border-l md:border-t-0 xl:w-[420px]">
+      <aside className="fixed inset-x-0 bottom-0 z-40 flex max-h-[72vh] w-full shrink-0 flex-col border-t border-gray-200 bg-white pb-[env(safe-area-inset-bottom)] shadow-[0_-8px_24px_rgba(15,23,42,0.08)] md:static md:max-h-none md:w-[380px] md:border-l md:border-t-0 md:pb-0 md:shadow-none xl:w-[420px]">
         <div className="border-b border-gray-200 px-4 py-3">
           <h2 className="text-sm font-semibold text-gray-900">
-            {mode === 'custom' ? 'Custom Order' : 'Select Table'}
+            {mode === 'custom'
+              ? 'Custom Order'
+              : mode === 'instant'
+                ? 'Instant Sale'
+                : 'Select Table'}
           </h2>
           <p className="text-xs text-gray-500">
             {mode === 'custom'
               ? 'Place this order manually'
-              : 'Choose a table to save the order'}
+              : mode === 'instant'
+                ? 'Name the sale and choose payment'
+                : 'Choose a table to save the order'}
           </p>
         </div>
 
@@ -155,7 +184,7 @@ export function OrderPanel() {
                 <div className="text-[10px] opacity-70">manual</div>
               </button>
             </div>
-          ) : (
+          ) : mode === 'custom' ? (
             <div className="space-y-3">
               <label className="mb-1.5 block text-xs font-medium text-gray-500">
                 Custom Order Name
@@ -179,20 +208,86 @@ export function OrderPanel() {
                 Place Custom Order
               </Button>
             </div>
+          ) : (
+            <div className="space-y-4">
+              <div>
+                <label className="mb-1.5 block text-xs font-medium text-gray-500">
+                  Sale Name
+                </label>
+                <div className="relative">
+                  <User className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                  <Input
+                    value={instantOrderName}
+                    onChange={(event) => setInstantOrderName(event.target.value)}
+                    className="pl-9"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <p className="mb-2 text-xs font-medium text-gray-500">
+                  Payment Method
+                </p>
+                <div className="grid grid-cols-3 gap-2">
+                  {paymentOptions.map((option) => {
+                    const Icon = option.icon;
+                    const isActive = instantPaymentMethod === option.value;
+
+                    return (
+                      <Button
+                        key={option.value}
+                        type="button"
+                        variant={isActive ? 'default' : 'outline'}
+                        className={`h-10 ${
+                          isActive ? 'bg-violet-600 hover:bg-violet-700' : ''
+                        }`}
+                        onClick={() => setInstantPaymentMethod(option.value)}
+                      >
+                        <Icon className="mr-1.5 h-4 w-4" />
+                        {option.label}
+                      </Button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
           )}
         </div>
 
         <div className="shrink-0 border-t border-gray-200 bg-white p-4">
-          <Button variant="outline" className="h-11 w-full" onClick={() => setMode('cart')}>
-            Back
-          </Button>
+          {mode === 'instant' ? (
+            <div className="grid grid-cols-[auto_1fr] gap-2">
+              <Button
+                variant="outline"
+                className="h-11"
+                onClick={() => setMode('cart')}
+              >
+                Back
+              </Button>
+              <Button
+                className="h-11 bg-violet-600 hover:bg-violet-700"
+                onClick={chargeInstantOrder}
+              >
+                <CreditCard className="mr-2 h-4 w-4" />
+                Complete Sale
+              </Button>
+            </div>
+          ) : (
+            <Button
+              variant="outline"
+              className="h-11 w-full"
+              onClick={() => setMode('cart')}
+            >
+              Back
+            </Button>
+          )}
         </div>
       </aside>
     );
   }
 
   return (
-    <aside className="flex w-full shrink-0 flex-col border-t border-gray-200 bg-white md:w-[380px] md:border-l md:border-t-0 xl:w-[420px]">
+    <aside className="fixed inset-x-0 bottom-0 z-40 flex max-h-[72vh] w-full shrink-0 flex-col border-t border-gray-200 bg-white pb-[env(safe-area-inset-bottom)] shadow-[0_-8px_24px_rgba(15,23,42,0.08)] md:static md:max-h-none md:w-[380px] md:border-l md:border-t-0 md:pb-0 md:shadow-none xl:w-[420px]">
       <div className="border-b border-gray-200 px-4 py-3">
         <h2 className="text-sm font-semibold text-gray-900">Current Order</h2>
         <p className="text-xs text-gray-500">
@@ -251,61 +346,6 @@ export function OrderPanel() {
           ))}
         </div>
 
-        {isChoosingTable && (
-          <div className="space-y-3">
-            <div className="flex items-center gap-2 text-sm font-semibold text-gray-900">
-              <Armchair className="h-4 w-4 text-violet-600" />
-              {mode === 'charge' ? 'Select Table' : 'Save to Table'}
-            </div>
-            <div className="grid grid-cols-4 gap-2">
-              {tables.map((table) => (
-                <button
-                  key={table.id}
-                  type="button"
-                  onClick={() => setPendingTable(table.number)}
-                  className={`relative rounded-lg border-2 p-3 text-center transition-all ${
-                    pendingTable === table.number
-                      ? 'border-violet-600 bg-violet-50'
-                      : getStatusColor(table.status)
-                  }`}
-                >
-                  <div className="text-lg font-bold">{table.number}</div>
-                  <div className="text-[10px] opacity-70">{table.seats} seats</div>
-                  <span
-                    className={`absolute right-1 top-1 h-2 w-2 rounded-full ${getStatusDot(table.status)}`}
-                  />
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {mode === 'charge' && (
-          <div className="space-y-3">
-            <p className="text-sm font-semibold text-gray-900">Payment Method</p>
-            <div className="grid grid-cols-3 gap-2">
-              {paymentOptions.map((option) => {
-                const Icon = option.icon;
-
-                return (
-                  <button
-                    key={option.value}
-                    type="button"
-                    onClick={() => setPaymentMethod(option.value)}
-                    className={`flex flex-col items-center gap-1 rounded-lg border-2 p-3 transition-all ${
-                      paymentMethod === option.value
-                        ? 'border-violet-600 bg-violet-50 text-violet-700'
-                        : 'border-gray-200 text-gray-600 hover:bg-gray-50'
-                    }`}
-                  >
-                    <Icon className="h-5 w-5" />
-                    <span className="text-xs font-medium">{option.label}</span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        )}
       </div>
 
       <div className="shrink-0 space-y-3 border-t border-gray-200 bg-white p-4">
@@ -337,24 +377,10 @@ export function OrderPanel() {
             </Button>
             <Button
               className="h-11 bg-violet-600 hover:bg-violet-700"
-              onClick={() => setMode('charge')}
+              onClick={openInstantCharge}
             >
               <CreditCard className="mr-2 h-4 w-4" />
               Charge
-            </Button>
-          </div>
-        ) : mode === 'charge' ? (
-          <div className="grid grid-cols-[auto_1fr] gap-2">
-            <Button variant="outline" className="h-11" onClick={() => setMode('cart')}>
-              Back
-            </Button>
-            <Button
-              className="h-11 bg-violet-600 hover:bg-violet-700"
-              onClick={() => completeOrder()}
-            >
-              {mode === 'charge'
-                ? `Charge Table ${pendingTable}`
-                : `Save Order for Table ${pendingTable}`}
             </Button>
           </div>
         ) : (

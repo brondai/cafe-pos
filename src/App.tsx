@@ -1,8 +1,7 @@
-import { Routes, Route } from 'react-router';
+import { Routes, Route, Navigate } from 'react-router';
 import { Toaster } from '@/components/ui/sonner';
 import { POSProvider } from '@/hooks/usePOS';
 import { Layout } from '@/components/Layout';
-import { POSPage } from '@/pages/POSPage';
 import { CartPage } from '@/pages/CartPage';
 import { OrdersPage } from '@/pages/OrdersPage';
 import { DashboardPage } from '@/pages/DashboardPage';
@@ -17,7 +16,7 @@ function AppContent() {
     <>
       <Layout>
         <Routes>
-          <Route path="/" element={<POSPage />} />
+          <Route path="/" element={<Navigate to="/orders" replace />} />
           <Route path="/cart" element={<CartPage />} />
           <Route path="/orders" element={<OrdersPage />} />
           <Route path="/dashboard" element={<DashboardPage />} />

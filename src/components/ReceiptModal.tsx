@@ -19,6 +19,12 @@ export function ReceiptModal({ order, open, onClose }: ReceiptModalProps) {
   if (!order) return null;
 
   const orderDate = new Date(order.createdAt);
+  const orderLabel =
+    order.tableNumber === 'Instant'
+      ? order.customerName || 'Instant Order'
+      : order.tableNumber === 'Custom' && order.customerName
+        ? order.customerName
+        : `Table ${order.tableNumber}`;
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
@@ -42,7 +48,7 @@ export function ReceiptModal({ order, open, onClose }: ReceiptModalProps) {
             </div>
             <div className="flex items-center gap-2 text-gray-600">
               <User className="h-3.5 w-3.5" />
-              <span>Table {order.tableNumber}</span>
+              <span>{orderLabel}</span>
             </div>
             {order.customerName && (
               <div className="flex items-center gap-2 text-gray-600">

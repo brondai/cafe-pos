@@ -28,6 +28,7 @@ interface POSContextType {
   placeOrder: (customerName?: string, tableNumber?: string) => Order | null;
   addItemToOrder: (orderId: string, itemId: string) => void;
   updateOrderItemQuantity: (orderId: string, itemId: string, quantity: number) => void;
+  updateOrderItems: (orderId: string, items: CartItem[]) => void;
   chargeOrder: (
     order: Order,
     paymentMethod: NonNullable<Order['paymentMethod']>
@@ -205,6 +206,19 @@ export function POSProvider({ children }: { children: ReactNode }) {
     [invoiceSettings.taxRate]
   );
 
+  const updateOrderItems = useCallback(
+    (orderId: string, items: CartItem[]) => {
+      setOrders((prev) =>
+        prev.map((order) => {
+          if (order.id !== orderId || order.status !== 'active') return order;
+
+          return { ...order, items, ...calculateTotals(items, invoiceSettings.taxRate) };
+        })
+      );
+    },
+    [invoiceSettings.taxRate]
+  );
+
   const chargeOrder = useCallback(
     (order: Order, paymentMethod: NonNullable<Order['paymentMethod']>) => {
       const paidOrder: Order = {
@@ -261,6 +275,7 @@ export function POSProvider({ children }: { children: ReactNode }) {
         placeOrder,
         addItemToOrder,
         updateOrderItemQuantity,
+        updateOrderItems,
         chargeOrder,
         updateOrderStatus,
         getTableStatus,
