@@ -9,6 +9,7 @@ import { useOrderDraft } from '@/features/orders/hooks/useOrderDraft';
 import {
   tableSortValue,
 } from '@/features/orders/utils/orderUtils';
+import { hasRoleAccess } from '@/features/auth/mockUsers';
 import { CategoryTabs } from '@/features/pos/components/CategoryTabs';
 import { MenuGrid } from '@/features/pos/components/MenuGrid';
 import { OrderPanel } from '@/features/pos/components/OrderPanel';
@@ -17,6 +18,7 @@ import { ArrowLeft, Search } from 'lucide-react';
 
 export function OrdersPage() {
   const {
+    currentRole,
     orders,
     updateOrderItems,
     chargeOrder,
@@ -32,6 +34,8 @@ export function OrdersPage() {
   const [menuCategory, setMenuCategory] = useState('all');
   const [showPaymentOptions, setShowPaymentOptions] = useState(false);
   const [isMobileOrderOpen, setIsMobileOrderOpen] = useState(false);
+  const canAdjustActiveOrders = hasRoleAccess(currentRole, 'adjustActiveOrders');
+  const canCancelOrders = hasRoleAccess(currentRole, 'cancelOrders');
 
   const selectedOrder = orders.find((order) => order.id === selectedOrderId) || null;
   const isEditingActiveOrder = selectedOrder?.status === 'active';
@@ -136,6 +140,7 @@ export function OrdersPage() {
             onNewOrder={startNewOrder}
             onOpenOrder={openOrder}
             onCancelOrder={(orderId) => updateOrderStatus(orderId, 'cancelled')}
+            canCancelOrders={canCancelOrders}
           />
         )}
       </div>
@@ -151,7 +156,8 @@ export function OrdersPage() {
             subtotal={orderDraft.panelSubtotal}
             tax={orderDraft.panelTax}
             total={orderDraft.panelTotal}
-            isEditingActiveOrder={Boolean(isEditingActiveOrder)}
+            isEditingActiveOrder={Boolean(isEditingActiveOrder && canAdjustActiveOrders)}
+            canSaveChanges={canAdjustActiveOrders}
             showPaymentOptions={showPaymentOptions}
             onClose={closeOrder}
             onSave={orderDraft.saveDraftOrder}
@@ -172,6 +178,7 @@ export function OrdersPage() {
             total={orderDraft.panelTotal}
             open={isMobileOrderOpen}
             showPaymentOptions={showPaymentOptions}
+            canSaveChanges={canAdjustActiveOrders}
             onOpenChange={setIsMobileOrderOpen}
             onShowPaymentOptionsChange={setShowPaymentOptions}
             onSave={orderDraft.saveDraftOrder}

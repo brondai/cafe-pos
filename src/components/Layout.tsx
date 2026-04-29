@@ -1,7 +1,22 @@
 import { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 import { Button } from '@/components/ui/button';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
+import {
+  hasRoleAccess,
+  MOCK_USERS,
+  ROLE_LABELS,
+  type RoleCapability,
+  type UserRole,
+} from '@/features/auth/mockUsers';
+import { usePOS } from '@/hooks/usePOS';
 import {
   ClipboardList,
   Settings,
@@ -9,20 +24,57 @@ import {
   Menu,
   LayoutDashboard,
   ChevronLeft,
+  UserRound,
 } from 'lucide-react';
+
+interface NavItem {
+  path: string;
+  label: string;
+  icon: typeof ClipboardList;
+  capability: RoleCapability;
+}
 
 export function Layout({ children }: { children: React.ReactNode }) {
   const location = useLocation();
   const navigate = useNavigate();
+  const { currentRole, currentUser, setCurrentRole } = usePOS();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  const navItems = [
-    { path: '/orders', label: 'Orders', icon: ClipboardList },
-    { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { path: '/settings', label: 'Settings', icon: Settings },
+  const allNavItems: NavItem[] = [
+    {
+      path: '/orders',
+      label: 'Orders',
+      icon: ClipboardList,
+      capability: 'viewOrders',
+    },
+    {
+      path: '/dashboard',
+      label: 'Dashboard',
+      icon: LayoutDashboard,
+      capability: 'viewDashboard',
+    },
+    {
+      path: '/settings',
+      label: 'Settings',
+      icon: Settings,
+      capability: 'viewSettings',
+    },
   ];
 
-  const currentPage = navItems.find((n) => n.path === location.pathname);
+  const navItems = allNavItems.filter((item) =>
+    hasRoleAccess(currentRole, item.capability)
+  );
+
+  const currentPage = allNavItems.find((n) => n.path === location.pathname);
+
+  const handleRoleChange = (role: UserRole) => {
+    setCurrentRole(role);
+
+    const activeRoute = allNavItems.find((item) => item.path === location.pathname);
+    if (activeRoute && !hasRoleAccess(role, activeRoute.capability)) {
+      navigate('/orders', { replace: true });
+    }
+  };
 
   return (
     <div className="h-screen flex flex-col bg-gray-50">
@@ -53,6 +105,30 @@ export function Layout({ children }: { children: React.ReactNode }) {
         </div>
 
         <div className="flex items-center gap-2">
+          <Select
+            value={currentRole}
+            onValueChange={(value) => handleRoleChange(value as UserRole)}
+          >
+            <SelectTrigger
+              size="sm"
+              className="h-9 w-[116px] border-gray-200 bg-gray-50 px-2 text-xs sm:w-[156px]"
+              aria-label="Mock role"
+            >
+              <UserRound className="h-3.5 w-3.5 text-gray-500" />
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent align="end">
+              {MOCK_USERS.map((user) => (
+                <SelectItem key={user.id} value={user.role}>
+                  <span className="font-medium">{ROLE_LABELS[user.role]}</span>
+                  <span className="hidden text-xs text-gray-500 sm:inline">
+                    {user.name}
+                  </span>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
           {/* Mobile Menu */}
           <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
             <SheetTrigger asChild>
@@ -68,6 +144,9 @@ export function Layout({ children }: { children: React.ReactNode }) {
                   </div>
                   <span className="font-bold text-gray-900">Cafe POS</span>
                 </div>
+                <p className="mt-2 text-xs text-gray-500">
+                  {currentUser.title}: {currentUser.name}
+                </p>
               </div>
               <nav className="p-2 space-y-1">
                 {navItems.map((item) => {

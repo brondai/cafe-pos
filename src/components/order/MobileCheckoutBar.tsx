@@ -8,6 +8,7 @@ interface MobileCheckoutBarProps {
   onOpenSummary: () => void;
   onSave: () => void;
   onCharge: () => void;
+  saveDisabled?: boolean;
   chargeDisabled?: boolean;
   layout?: 'stacked' | 'inline';
   summaryClassName?: string;
@@ -21,6 +22,7 @@ export function MobileCheckoutBar({
   onOpenSummary,
   onSave,
   onCharge,
+  saveDisabled = false,
   chargeDisabled = false,
   layout = 'stacked',
   summaryClassName = '',
@@ -56,6 +58,7 @@ export function MobileCheckoutBar({
             : 'h-11 border-violet-200 text-violet-700 hover:bg-violet-50'
         }
         onClick={onSave}
+        disabled={saveDisabled}
       >
         <Save className={layout === 'inline' ? 'mr-1 h-4 w-4' : 'mr-2 h-4 w-4'} />
         Save

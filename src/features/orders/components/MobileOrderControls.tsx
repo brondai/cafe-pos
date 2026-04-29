@@ -27,6 +27,7 @@ interface MobileOrderControlsProps {
   total: number;
   open: boolean;
   showPaymentOptions: boolean;
+  canSaveChanges: boolean;
   onOpenChange: (open: boolean) => void;
   onShowPaymentOptionsChange: (show: boolean) => void;
   onSave: () => void;
@@ -45,6 +46,7 @@ export function MobileOrderControls({
   total,
   open,
   showPaymentOptions,
+  canSaveChanges,
   onOpenChange,
   onShowPaymentOptionsChange,
   onSave,
@@ -65,6 +67,7 @@ export function MobileOrderControls({
           onOpenChange(true);
         }}
         onSave={onSave}
+        saveDisabled={!canSaveChanges}
         onCharge={() => {
           onShowPaymentOptionsChange(true);
           onOpenChange(true);
@@ -103,7 +106,7 @@ export function MobileOrderControls({
             ) : (
               <OrderItemsList
                 items={items}
-                isEditable
+                isEditable={canSaveChanges}
                 onRemoveItem={onRemoveItem}
                 onUpdateItemQuantity={onUpdateItemQuantity}
               />
@@ -127,14 +130,20 @@ export function MobileOrderControls({
                   tax={tax}
                   total={total}
                 />
-                <div className="grid grid-cols-2 gap-2">
-                  <Button
-                    variant="outline"
-                    className="h-11 border-violet-200 text-violet-700 hover:bg-violet-50"
-                    onClick={onSave}
-                  >
-                    Save
-                  </Button>
+                <div className={canSaveChanges ? 'grid grid-cols-2 gap-2' : 'space-y-2'}>
+                  {canSaveChanges ? (
+                    <Button
+                      variant="outline"
+                      className="h-11 border-violet-200 text-violet-700 hover:bg-violet-50"
+                      onClick={onSave}
+                    >
+                      Save
+                    </Button>
+                  ) : (
+                    <p className="rounded-md bg-amber-50 px-3 py-2 text-xs font-medium text-amber-800">
+                      Manager access required to edit this saved order.
+                    </p>
+                  )}
                   <Button
                     className="h-11 bg-violet-600 hover:bg-violet-700"
                     onClick={() => onShowPaymentOptionsChange(true)}

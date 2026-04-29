@@ -1,9 +1,15 @@
-import { useCallback, useEffect, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { menuItems } from '@/data/menuData';
+import {
+  getMockUserForRole,
+  isUserRole,
+  type UserRole,
+} from '@/features/auth/mockUsers';
 import type { CartItem, InvoiceSettings, Order } from '@/types';
 import { POSContext } from '@/hooks/posContext';
 
 const INVOICE_SETTINGS_KEY = 'cafe-pos-invoice-settings';
+const MOCK_ROLE_KEY = 'cafe-pos-mock-role';
 
 const DEFAULT_INVOICE_SETTINGS: InvoiceSettings = {
   storeName: 'The Brew Haven',
@@ -33,6 +39,13 @@ function loadInvoiceSettings() {
   }
 }
 
+function loadMockRole(): UserRole {
+  if (typeof window === 'undefined') return 'admin';
+
+  const saved = window.localStorage.getItem(MOCK_ROLE_KEY);
+  return saved && isUserRole(saved) ? saved : 'admin';
+}
+
 function calculateTotals(items: CartItem[], taxRate: number) {
   const subtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
   const tax = subtotal * (taxRate / 100);
@@ -42,6 +55,7 @@ function calculateTotals(items: CartItem[], taxRate: number) {
 }
 
 export function POSProvider({ children }: { children: ReactNode }) {
+  const [currentRole, setCurrentRole] = useState<UserRole>(loadMockRole);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
   const [invoiceSettings, setInvoiceSettings] = useState<InvoiceSettings>(
@@ -51,6 +65,14 @@ export function POSProvider({ children }: { children: ReactNode }) {
   const [selectedTable, setSelectedTable] = useState('1');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const currentUser = useMemo(
+    () => getMockUserForRole(currentRole),
+    [currentRole]
+  );
+
+  useEffect(() => {
+    window.localStorage.setItem(MOCK_ROLE_KEY, currentRole);
+  }, [currentRole]);
 
   useEffect(() => {
     window.localStorage.setItem(
@@ -169,6 +191,8 @@ export function POSProvider({ children }: { children: ReactNode }) {
   return (
     <POSContext.Provider
       value={{
+        currentUser,
+        currentRole,
         cart,
         orders,
         invoiceSettings,
@@ -176,6 +200,7 @@ export function POSProvider({ children }: { children: ReactNode }) {
         selectedTable,
         selectedCategory,
         subtotal,
+        setCurrentRole,
         updateInvoiceSettings,
         dismissInvoice,
         addToCart,

@@ -17,6 +17,7 @@ interface ActiveOrdersListProps {
   onNewOrder: () => void;
   onOpenOrder: (orderId: string) => void;
   onCancelOrder: (orderId: string) => void;
+  canCancelOrders: boolean;
 }
 
 export function ActiveOrdersList({
@@ -27,6 +28,7 @@ export function ActiveOrdersList({
   onNewOrder,
   onOpenOrder,
   onCancelOrder,
+  canCancelOrders,
 }: ActiveOrdersListProps) {
   return (
     <>
@@ -49,6 +51,11 @@ export function ActiveOrdersList({
             New Order
           </Button>
         </div>
+        {!canCancelOrders && (
+          <p className="rounded-md bg-amber-50 px-3 py-2 text-xs font-medium text-amber-800">
+            Cashier view: cancellations and saved-order edits need Manager access.
+          </p>
+        )}
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3 space-y-3">
@@ -127,20 +134,22 @@ export function ActiveOrdersList({
                   ))}
                 </div>
 
-                <div className="flex justify-end mt-3">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="h-8 text-xs bg-red-50 text-red-700 border-red-200 hover:bg-red-100"
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      onCancelOrder(order.id);
-                    }}
-                  >
-                    <XCircle className="h-3.5 w-3.5 mr-1" />
-                    Cancel
-                  </Button>
-                </div>
+                {canCancelOrders && (
+                  <div className="flex justify-end mt-3">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-8 text-xs bg-red-50 text-red-700 border-red-200 hover:bg-red-100"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        onCancelOrder(order.id);
+                      }}
+                    >
+                      <XCircle className="h-3.5 w-3.5 mr-1" />
+                      Cancel
+                    </Button>
+                  </div>
+                )}
               </div>
             );
           })

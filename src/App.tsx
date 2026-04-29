@@ -1,5 +1,6 @@
 import { Routes, Route, Navigate } from 'react-router';
 import { Toaster } from '@/components/ui/sonner';
+import { hasRoleAccess } from '@/features/auth/mockUsers';
 import { POSProvider } from '@/hooks/POSProvider';
 import { Layout } from '@/components/Layout';
 import { OrdersPage } from '@/pages/OrdersPage';
@@ -9,7 +10,7 @@ import { InvoicePrintDialog } from '@/components/InvoicePrintDialog';
 import { usePOS } from '@/hooks/usePOS';
 
 function AppContent() {
-  const { invoiceOrder, invoiceSettings, dismissInvoice } = usePOS();
+  const { currentRole, invoiceOrder, invoiceSettings, dismissInvoice } = usePOS();
 
   return (
     <>
@@ -17,8 +18,26 @@ function AppContent() {
         <Routes>
           <Route path="/" element={<Navigate to="/orders" replace />} />
           <Route path="/orders" element={<OrdersPage />} />
-          <Route path="/dashboard" element={<DashboardPage />} />
-          <Route path="/settings" element={<SettingsPage />} />
+          <Route
+            path="/dashboard"
+            element={
+              hasRoleAccess(currentRole, 'viewDashboard') ? (
+                <DashboardPage />
+              ) : (
+                <Navigate to="/orders" replace />
+              )
+            }
+          />
+          <Route
+            path="/settings"
+            element={
+              hasRoleAccess(currentRole, 'viewSettings') ? (
+                <SettingsPage />
+              ) : (
+                <Navigate to="/orders" replace />
+              )
+            }
+          />
           <Route path="*" element={<Navigate to="/orders" replace />} />
         </Routes>
       </Layout>

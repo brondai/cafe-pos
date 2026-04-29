@@ -1,7 +1,10 @@
 import { createContext } from 'react';
+import type { MockUser, UserRole } from '@/features/auth/mockUsers';
 import type { CartItem, InvoiceSettings, Order } from '@/types';
 
 export interface POSContextType {
+  currentUser: MockUser;
+  currentRole: UserRole;
   cart: CartItem[];
   orders: Order[];
   invoiceSettings: InvoiceSettings;
@@ -9,6 +12,7 @@ export interface POSContextType {
   selectedTable: string;
   selectedCategory: string;
   subtotal: number;
+  setCurrentRole: (role: UserRole) => void;
   updateInvoiceSettings: (settings: Partial<InvoiceSettings>) => void;
   dismissInvoice: () => void;
   addToCart: (itemId: string) => void;
