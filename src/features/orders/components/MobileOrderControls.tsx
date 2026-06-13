@@ -15,15 +15,13 @@ import {
   OrderTotals,
 } from '@/features/orders/components/OrderDetailsPanel';
 import { getOrderDisplayName } from '@/features/orders/utils/orderUtils';
-import type { CartItem, InvoiceSettings, Order } from '@/types';
+import type { CartItem, Order } from '@/types';
 
 interface MobileOrderControlsProps {
   order: Order;
-  invoiceSettings: InvoiceSettings;
   items: CartItem[];
   itemCount: number;
   subtotal: number;
-  tax: number;
   total: number;
   open: boolean;
   showPaymentOptions: boolean;
@@ -38,11 +36,9 @@ interface MobileOrderControlsProps {
 
 export function MobileOrderControls({
   order,
-  invoiceSettings,
   items,
   itemCount,
   subtotal,
-  tax,
   total,
   open,
   showPaymentOptions,
@@ -125,9 +121,7 @@ export function MobileOrderControls({
             ) : (
               <>
                 <OrderTotals
-                  invoiceSettings={invoiceSettings}
                   subtotal={subtotal}
-                  tax={tax}
                   total={total}
                 />
                 <div className={canSaveChanges ? 'grid grid-cols-2 gap-2' : 'space-y-2'}>

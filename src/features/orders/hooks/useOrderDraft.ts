@@ -7,7 +7,6 @@ import { calculateItemTotals, getOrderItemCount } from '@/features/orders/utils/
 interface UseOrderDraftOptions {
   selectedOrder: Order | null;
   isEditingActiveOrder: boolean;
-  taxRate: number;
   updateOrderItems: (orderId: string, items: CartItem[]) => void;
   chargeOrder: (order: Order, paymentMethod: PaymentMethod) => Order;
   onSave: () => void;
@@ -17,14 +16,13 @@ interface UseOrderDraftOptions {
 export function useOrderDraft({
   selectedOrder,
   isEditingActiveOrder,
-  taxRate,
   updateOrderItems,
   chargeOrder,
   onSave,
   onCharge,
 }: UseOrderDraftOptions) {
   const [draftItems, setDraftItems] = useState<Order['items']>([]);
-  const draftTotals = calculateItemTotals(draftItems, taxRate);
+  const draftTotals = calculateItemTotals(draftItems);
   const panelItems = isEditingActiveOrder ? draftItems : selectedOrder?.items || [];
   const panelTotals = isEditingActiveOrder
     ? draftTotals

@@ -21,10 +21,10 @@ export function getOrderItemCount(items: CartItem[]) {
   return items.reduce((sum, item) => sum + item.quantity, 0);
 }
 
-export function calculateItemTotals(items: CartItem[], taxRate: number) {
+export function calculateItemTotals(items: CartItem[]) {
   const subtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
-  const tax = subtotal * (taxRate / 100);
-  const total = subtotal + tax;
+  const tax = 0;
+  const total = subtotal;
 
   return { subtotal, tax, total };
 }

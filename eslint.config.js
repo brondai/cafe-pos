@@ -6,9 +6,9 @@ import tseslint from 'typescript-eslint'
 import { defineConfig, globalIgnores } from 'eslint/config'
 
 export default defineConfig([
-  globalIgnores(['dist']),
+  globalIgnores(['dist', 'dev-dist', 'server/src/db/generated']),
   {
-    files: ['**/*.{ts,tsx}'],
+    files: ['src/**/*.{ts,tsx}', '*.ts'],
     extends: [
       js.configs.recommended,
       tseslint.configs.recommended,
@@ -18,6 +18,14 @@ export default defineConfig([
     languageOptions: {
       ecmaVersion: 2020,
       globals: globals.browser,
+    },
+  },
+  {
+    files: ['server/**/*.{ts,tsx}', 'prisma.config.ts'],
+    extends: [js.configs.recommended, tseslint.configs.recommended],
+    languageOptions: {
+      ecmaVersion: 2023,
+      globals: globals.node,
     },
   },
 ])

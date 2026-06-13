@@ -16,7 +16,7 @@ const DEFAULT_INVOICE_SETTINGS: InvoiceSettings = {
   address: '123 Coffee Lane, Downtown',
   phone: '(555) 123-4567',
   invoiceTitle: 'Tax Invoice',
-  taxRate: 8,
+  taxRate: 0,
   currencySymbol: '$',
   footerMessage: 'Thank you for visiting. Please come again.',
   template: 'classic',
@@ -46,10 +46,10 @@ function loadMockRole(): UserRole {
   return saved && isUserRole(saved) ? saved : 'admin';
 }
 
-function calculateTotals(items: CartItem[], taxRate: number) {
+function calculateTotals(items: CartItem[]) {
   const subtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
-  const tax = subtotal * (taxRate / 100);
-  const total = subtotal + tax;
+  const tax = 0;
+  const total = subtotal;
 
   return { subtotal, tax, total };
 }
@@ -129,7 +129,7 @@ export function POSProvider({ children }: { children: ReactNode }) {
     (customerName?: string, tableNumber?: string): Order | null => {
       if (cart.length === 0) return null;
 
-      const totals = calculateTotals(cart, invoiceSettings.taxRate);
+      const totals = calculateTotals(cart);
 
       const order: Order = {
         id: `ORD-${Date.now()}`,
@@ -145,7 +145,7 @@ export function POSProvider({ children }: { children: ReactNode }) {
       setCart([]);
       return order;
     },
-    [cart, invoiceSettings.taxRate, selectedTable]
+    [cart, selectedTable]
   );
 
   const updateOrderItems = useCallback(
@@ -154,11 +154,11 @@ export function POSProvider({ children }: { children: ReactNode }) {
         prev.map((order) => {
           if (order.id !== orderId || order.status !== 'active') return order;
 
-          return { ...order, items, ...calculateTotals(items, invoiceSettings.taxRate) };
+          return { ...order, items, ...calculateTotals(items) };
         })
       );
     },
-    [invoiceSettings.taxRate]
+    []
   );
 
   const chargeOrder = useCallback(

@@ -1,4 +1,12 @@
 import { Button } from '@/components/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { CartItemsList } from '@/features/pos/components/CartItemsList';
 import { CustomOrderForm } from '@/features/pos/components/CustomOrderForm';
 import { DesktopOrderPanel } from '@/features/pos/components/OrderPanelLayout';
@@ -8,10 +16,12 @@ import { OrderPanelActions } from '@/features/pos/components/OrderPanelActions';
 import { OrderPanelTotals } from '@/features/pos/components/OrderPanelTotals';
 import { TableSavePicker } from '@/features/pos/components/TableSavePicker';
 import { useOrderPanelState } from '@/features/pos/hooks/useOrderPanelState';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { usePOS } from '@/hooks/usePOS';
 import { CreditCard } from 'lucide-react';
 
 export function OrderPanel() {
+  const isMobile = useIsMobile();
   const {
     cart,
     updateQuantity,
@@ -19,7 +29,6 @@ export function OrderPanel() {
     clearCart,
     placeOrder,
     chargeOrder,
-    invoiceSettings,
     subtotal,
     selectedTable,
     setSelectedTable,
@@ -27,7 +36,6 @@ export function OrderPanel() {
 
   const panel = useOrderPanelState({
     cart,
-    invoiceSettings,
     subtotal,
     selectedTable,
     setSelectedTable,
@@ -39,14 +47,16 @@ export function OrderPanel() {
     return null;
   }
 
-  const body =
-    panel.mode === 'cart' ? (
-      <CartItemsList
-        cart={cart}
-        onRemoveItem={removeFromCart}
-        onUpdateQuantity={updateQuantity}
-      />
-    ) : panel.mode === 'save' ? (
+  const cartBody = (
+    <CartItemsList
+      cart={cart}
+      onRemoveItem={removeFromCart}
+      onUpdateQuantity={updateQuantity}
+    />
+  );
+
+  const stepBody =
+    panel.mode === 'save' ? (
       <TableSavePicker
         onSelectTable={(tableNumber) => panel.completeOrder(tableNumber)}
         onCustomOrder={() => panel.setMode('custom')}
@@ -68,22 +78,19 @@ export function OrderPanel() {
       />
     );
 
-  const footer =
-    panel.mode === 'cart' ? (
-      <>
-        <OrderPanelTotals
-          subtotal={subtotal}
-          tax={panel.tax}
-          total={panel.total}
-          taxRate={invoiceSettings.taxRate}
-        />
-        <OrderPanelActions
-          onSave={panel.openSaveMode}
-          onCharge={panel.openInstantCharge}
-          onClear={clearCart}
-        />
-      </>
-    ) : panel.mode === 'instant' ? (
+  const cartFooter = (
+    <>
+      <OrderPanelTotals subtotal={subtotal} total={panel.total} />
+      <OrderPanelActions
+        onSave={panel.openSaveMode}
+        onCharge={panel.openInstantCharge}
+        onClear={clearCart}
+      />
+    </>
+  );
+
+  const stepFooter =
+    panel.mode === 'instant' ? (
       <div className="grid grid-cols-[auto_1fr] gap-2">
         <Button variant="outline" className="h-11" onClick={panel.resetToCart}>
           Back
@@ -106,23 +113,46 @@ export function OrderPanel() {
       </Button>
     );
 
+  const mobileBody = panel.mode === 'cart' ? cartBody : stepBody;
+  const mobileFooter = panel.mode === 'cart' ? cartFooter : stepFooter;
+  const isStepOpen = panel.mode !== 'cart';
+
   return (
     <>
       <DesktopOrderPanel
-        title={panel.title}
-        description={panel.description}
-        body={body}
-        footer={footer}
+        title="Current Order"
+        description={`${panel.cartCount} item${panel.cartCount === 1 ? '' : 's'}`}
+        body={cartBody}
+        footer={cartFooter}
       />
+      <Dialog
+        open={!isMobile && isStepOpen}
+        onOpenChange={(open) => {
+          if (!open) {
+            panel.resetToCart();
+          }
+        }}
+      >
+        <DialogContent className="max-h-[85vh] gap-0 overflow-hidden p-0 sm:max-w-xl">
+          <DialogHeader className="border-b border-gray-200 px-5 py-4">
+            <DialogTitle className="text-base">{panel.title}</DialogTitle>
+            <DialogDescription>{panel.description}</DialogDescription>
+          </DialogHeader>
+          <div className="min-h-0 overflow-y-auto px-5 py-4">{stepBody}</div>
+          <DialogFooter className="border-t border-gray-200 p-4">
+            {stepFooter}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       <MobileOrderPanel
         title={panel.title}
         description={panel.description}
         cartCount={panel.cartCount}
         total={panel.total}
-        body={body}
-        footer={footer}
-        open={panel.isMobilePanelOpen}
-        drawerOpen={panel.mode !== 'cart'}
+        body={mobileBody}
+        footer={mobileFooter}
+        open={isMobile && panel.isMobilePanelOpen}
+        drawerOpen={isMobile && isStepOpen}
         onOpenChange={panel.handleMobileOpenChange}
         onOpenCart={panel.openMobileCart}
         onSave={panel.openSaveMode}

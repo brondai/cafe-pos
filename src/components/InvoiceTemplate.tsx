@@ -135,8 +135,8 @@ export function InvoiceTemplate({
           <span>{money(order.subtotal, settings.currencySymbol)}</span>
         </div>
         <div className="flex justify-between text-gray-600">
-          <span>Tax ({settings.taxRate}%)</span>
-          <span>{money(order.tax, settings.currencySymbol)}</span>
+          <span>VAT</span>
+          <span>Included</span>
         </div>
         <Separator />
         <div className="flex justify-between text-base font-bold text-gray-950">

@@ -5,15 +5,13 @@ import { OrderTotalsSummary } from '@/components/order/OrderTotalsSummary';
 import { PaymentMethodPicker } from '@/components/order/PaymentMethodPicker';
 import { statusConfig, type PaymentMethod } from '@/features/orders/constants';
 import { getOrderDisplayName } from '@/features/orders/utils/orderUtils';
-import type { CartItem, InvoiceSettings, Order } from '@/types';
+import type { CartItem, Order } from '@/types';
 import { CreditCard, Printer, Save, X } from 'lucide-react';
 
 interface OrderDetailsPanelProps {
   order: Order;
-  invoiceSettings: InvoiceSettings;
   items: CartItem[];
   subtotal: number;
-  tax: number;
   total: number;
   isEditingActiveOrder: boolean;
   canSaveChanges: boolean;
@@ -29,10 +27,8 @@ interface OrderDetailsPanelProps {
 
 export function OrderDetailsPanel({
   order,
-  invoiceSettings,
   items,
   subtotal,
-  tax,
   total,
   isEditingActiveOrder,
   canSaveChanges,
@@ -58,9 +54,7 @@ export function OrderDetailsPanel({
 
       <div className="shrink-0 space-y-3 border-t border-gray-200 bg-white p-4">
         <OrderTotals
-          invoiceSettings={invoiceSettings}
           subtotal={subtotal}
-          tax={tax}
           total={total}
         />
 
@@ -140,22 +134,16 @@ export function OrderItemsList({
 }
 
 export function OrderTotals({
-  invoiceSettings,
   subtotal,
-  tax,
   total,
 }: {
-  invoiceSettings: InvoiceSettings;
   subtotal: number;
-  tax: number;
   total: number;
 }) {
   return (
     <OrderTotalsSummary
       subtotal={subtotal}
-      tax={tax}
       total={total}
-      taxRate={invoiceSettings.taxRate}
     />
   );
 }

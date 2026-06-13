@@ -1,11 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router';
 import type { PaymentMethod, PanelMode } from '@/features/pos/types';
-import type { CartItem, InvoiceSettings, Order } from '@/types';
+import type { CartItem, Order } from '@/types';
 
 interface UseOrderPanelStateOptions {
   cart: CartItem[];
-  invoiceSettings: InvoiceSettings;
   subtotal: number;
   selectedTable: string;
   setSelectedTable: (table: string) => void;
@@ -18,7 +17,6 @@ interface UseOrderPanelStateOptions {
 
 export function useOrderPanelState({
   cart,
-  invoiceSettings,
   subtotal,
   selectedTable,
   setSelectedTable,
@@ -38,8 +36,8 @@ export function useOrderPanelState({
     () => cart.reduce((sum, item) => sum + item.quantity, 0),
     [cart]
   );
-  const tax = subtotal * (invoiceSettings.taxRate / 100);
-  const total = subtotal + tax;
+  const tax = 0;
+  const total = subtotal;
 
   useEffect(() => {
     if (cart.length === 0) {

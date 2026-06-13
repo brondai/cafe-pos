@@ -1,5 +1,33 @@
 # React + TypeScript + Vite
 
+## Backend Foundation
+
+Phase 0 adds a thin Express listener for the API, with tRPC handling typed procedures and Prisma targeting PostgreSQL.
+
+```bash
+cp .env.example .env
+npm install
+npm run db:generate
+npm run dev:server
+```
+
+The API listens on `http://localhost:4000` by default.
+
+- `GET /health` returns the basic service health payload.
+- `GET /trpc/health.check` returns the same payload through tRPC.
+- Prisma schema and migrations live under `server/prisma`.
+- The generated Prisma client is written to `server/src/db/generated/prisma`.
+
+Useful scripts:
+
+```bash
+npm run dev          # Vite frontend
+npm run dev:server   # Express + tRPC backend
+npm run db:generate  # Generate Prisma client
+npm run db:migrate   # Run Prisma migrations against PostgreSQL
+npm run db:studio    # Open Prisma Studio
+```
+
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
 
 Currently, two official plugins are available:

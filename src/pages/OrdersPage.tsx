@@ -23,7 +23,6 @@ export function OrdersPage() {
     updateOrderItems,
     chargeOrder,
     updateOrderStatus,
-    invoiceSettings,
     searchQuery: posSearchQuery,
     setSearchQuery: setPosSearchQuery,
   } = usePOS();
@@ -51,7 +50,6 @@ export function OrdersPage() {
   const orderDraft = useOrderDraft({
     selectedOrder,
     isEditingActiveOrder,
-    taxRate: invoiceSettings.taxRate,
     updateOrderItems,
     chargeOrder,
     onSave: closeOrder,
@@ -151,10 +149,8 @@ export function OrdersPage() {
         <>
           <OrderDetailsPanel
             order={selectedOrder}
-            invoiceSettings={invoiceSettings}
             items={orderDraft.panelItems}
             subtotal={orderDraft.panelSubtotal}
-            tax={orderDraft.panelTax}
             total={orderDraft.panelTotal}
             isEditingActiveOrder={Boolean(isEditingActiveOrder && canAdjustActiveOrders)}
             canSaveChanges={canAdjustActiveOrders}
@@ -170,11 +166,9 @@ export function OrdersPage() {
 
           <MobileOrderControls
             order={selectedOrder}
-            invoiceSettings={invoiceSettings}
             items={orderDraft.panelItems}
             itemCount={orderDraft.panelItemCount}
             subtotal={orderDraft.panelSubtotal}
-            tax={orderDraft.panelTax}
             total={orderDraft.panelTotal}
             open={isMobileOrderOpen}
             showPaymentOptions={showPaymentOptions}

@@ -84,7 +84,7 @@ export function SettingsPage() {
       (sum, item) => sum + item.price * item.quantity,
       0
     );
-    const tax = subtotal * (invoiceSettings.taxRate / 100);
+    const tax = 0;
 
     return {
       id: 'INV-PREVIEW',
@@ -92,13 +92,13 @@ export function SettingsPage() {
       items,
       subtotal,
       tax,
-      total: subtotal + tax,
+      total: subtotal,
       status: 'completed',
       paymentMethod: 'card',
       createdAt: new Date().toISOString(),
       customerName: 'Walk-in Guest',
     };
-  }, [invoiceSettings.taxRate]);
+  }, []);
 
   const handleSave = () => {
     setSaved(true);
@@ -162,8 +162,7 @@ export function SettingsPage() {
                     }
                   />
                 </div>
-                <div className="grid gap-3 sm:grid-cols-3">
-                  <div className="space-y-2 sm:col-span-2">
+                <div className="space-y-2">
                     <Label className="text-xs">Phone</Label>
                     <Input
                       value={invoiceSettings.phone}
@@ -171,19 +170,6 @@ export function SettingsPage() {
                         updateInvoiceSettings({ phone: event.target.value })
                       }
                     />
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="text-xs">Tax Rate (%)</Label>
-                    <Input
-                      type="number"
-                      value={invoiceSettings.taxRate}
-                      onChange={(event) =>
-                        updateInvoiceSettings({
-                          taxRate: Number(event.target.value),
-                        })
-                      }
-                    />
-                  </div>
                 </div>
               </CardContent>
             </Card>
