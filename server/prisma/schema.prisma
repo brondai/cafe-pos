@@ -16,8 +16,114 @@ model User {
   updatedAt DateTime @updatedAt
 }
 
+model Location {
+  id                String       @id @default(cuid())
+  name              String
+  address           String?
+  phone             String?
+  currencyCode      String       @default("NPR")
+  opensAt           String?
+  closesAt          String?
+  foodLastOrderTime String?
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+  settings          PosSettings?
+  categories        Category[]
+  menuItems         MenuItem[]
+}
+
+model PosSettings {
+  id                 String      @id @default(cuid())
+  locationId         String      @unique
+  location           Location    @relation(fields: [locationId], references: [id], onDelete: Restrict)
+  invoiceTitle       String      @default("Tax Invoice")
+  receiptFooter      String      @default("Thank you for visiting.")
+  currencySymbol     String      @default("Rs")
+  autoPrintReceipts  Boolean     @default(true)
+  defaultServiceMode ServiceMode @default(DINE_IN)
+  createdAt          DateTime    @default(now())
+  updatedAt          DateTime    @updatedAt
+}
+
+model Category {
+  id         String     @id @default(cuid())
+  locationId String
+  location   Location   @relation(fields: [locationId], references: [id], onDelete: Restrict)
+  parentId   String?
+  parent     Category?  @relation("CategoryChildren", fields: [parentId], references: [id], onDelete: Restrict)
+  children   Category[] @relation("CategoryChildren")
+  name       String
+  slug       String
+  icon       String?
+  sortOrder  Int        @default(0)
+  isActive   Boolean    @default(true)
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+  items      MenuItem[]
+
+  @@unique([locationId, slug])
+  @@index([locationId, sortOrder])
+}
+
+model MenuItem {
+  id          String            @id @default(cuid())
+  locationId  String
+  location    Location          @relation(fields: [locationId], references: [id], onDelete: Restrict)
+  categoryId  String
+  category    Category          @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  name        String
+  slug        String
+  description String?
+  imageUrl    String?
+  itemType    MenuItemType      @default(FOOD)
+  isActive    Boolean           @default(true)
+  isPopular   Boolean           @default(false)
+  sortOrder   Int               @default(0)
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+  variants    MenuItemVariant[]
+
+  @@unique([locationId, slug])
+  @@index([categoryId, sortOrder])
+  @@index([locationId, itemType])
+}
+
+model MenuItemVariant {
+  id           String   @id @default(cuid())
+  menuItemId   String
+  menuItem     MenuItem @relation(fields: [menuItemId], references: [id], onDelete: Restrict)
+  name         String   @default("Default")
+  sku          String?
+  priceAmount  Int
+  currencyCode String   @default("NPR")
+  attributes   Json?
+  isActive     Boolean  @default(true)
+  sortOrder    Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([menuItemId, name])
+  @@index([menuItemId, sortOrder])
+}
+
 enum UserRole {
   OWNER
   MANAGER
   CASHIER
+}
+
+enum ServiceMode {
+  DINE_IN
+  TAKEAWAY
+  INSTANT
+  CUSTOM
+}
+
+enum MenuItemType {
+  FOOD
+  DRINK
+  ALCOHOL
+  TOBACCO
+  HOOKAH
+  ADD_ON
 }
