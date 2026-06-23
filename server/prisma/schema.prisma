@@ -127,3 +127,54 @@ enum MenuItemType {
   HOOKAH
   ADD_ON
 }
+
+model Order {
+  id             String      @id @default(cuid())
+  locationId     String
+  tableNumber    String
+  customerName   String?
+  serviceMode    ServiceMode @default(DINE_IN)
+  status         OrderStatus @default(ACTIVE)
+  subtotalAmount Int         @default(0)
+  taxAmount      Int         @default(0)
+  totalAmount    Int         @default(0)
+  currencyCode   String      @default("NPR")
+  paymentMethod  PaymentMethod?
+  paidAt         DateTime?
+  completedAt    DateTime?
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+  items          OrderItem[]
+
+  @@index([locationId, status])
+  @@index([locationId, createdAt])
+}
+
+model OrderItem {
+  id             String   @id @default(cuid())
+  orderId        String
+  order          Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  menuItemId     String?
+  variantId      String?
+  name           String
+  variantName    String   @default("Default")
+  priceAmount    Int
+  quantity       Int
+  notes          String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([orderId])
+}
+
+enum OrderStatus {
+  ACTIVE
+  COMPLETED
+  CANCELLED
+}
+
+enum PaymentMethod {
+  CASH
+  CARD
+  QR
+}
