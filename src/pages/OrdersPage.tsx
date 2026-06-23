@@ -20,8 +20,6 @@ export function OrdersPage() {
   const {
     currentRole,
     orders,
-    ordersLoading,
-    ordersError,
     updateOrderItems,
     chargeOrder,
     updateOrderStatus,
@@ -110,24 +108,6 @@ export function OrdersPage() {
       chargeOrder(selectedOrder, selectedOrder.paymentMethod);
     }
   };
-
-  if (ordersLoading) {
-    return (
-      <div className="flex h-full items-center justify-center text-sm text-gray-500">
-        Loading orders…
-      </div>
-    );
-  }
-
-  if (ordersError) {
-    return (
-      <div className="flex h-full items-center justify-center">
-        <div className="rounded-md bg-red-50 px-4 py-3 text-sm text-red-700">
-          Failed to load orders: {ordersError}
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="flex h-full min-h-0 flex-col md:flex-row">
