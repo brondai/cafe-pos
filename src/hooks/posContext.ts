@@ -7,6 +7,8 @@ export interface POSContextType {
   currentRole: UserRole;
   cart: CartItem[];
   orders: Order[];
+  ordersLoading: boolean;
+  ordersError: string | null;
   invoiceSettings: InvoiceSettings;
   invoiceOrder: Order | null;
   selectedTable: string;
